@@ -8,6 +8,7 @@ import {
   Check,
   Clipboard,
   Crown,
+  Heart,
   Edit3,
   Film,
   Image,
@@ -35,6 +36,19 @@ const defaultWinners = {
   third: "ChromeCaster"
 };
 
+const defaultCommunityRankings = {
+  voters: {
+    first: "TopVoter1",
+    second: "TopVoter2",
+    third: "TopVoter3"
+  },
+  submitters: {
+    first: "TopSubmitter1",
+    second: "TopSubmitter2",
+    third: "TopSubmitter3"
+  }
+};
+
 const preset = {
   name: "Neon Purple Challenge Results",
   traits: [
@@ -55,6 +69,8 @@ const promptTypes = [
   { key: "first", label: "First Place Graphic", icon: Crown },
   { key: "second", label: "Second Place Graphic", icon: Medal },
   { key: "third", label: "Third Place Graphic", icon: Award },
+  { key: "topVoters", label: "Top Voters", icon: Heart },
+  { key: "topSubmitters", label: "Top Submitters", icon: Library },
   { key: "instagram", label: "Instagram Post", icon: Sparkles },
   { key: "video", label: "Video Prompt", icon: Film }
 ];
@@ -75,6 +91,22 @@ const themeObjectMap = {
   art: "brushes, paint splashes, palettes, canvas textures, gallery lighting"
 };
 
+const themeSoundMap = {
+  automotive: "deep engine revs, tire whooshes, gear shifts, speed-ramp wind, subtle chrome impacts",
+  car: "deep engine revs, tire whooshes, gear shifts, speed-ramp wind, subtle chrome impacts",
+  vehicle: "deep engine revs, tire whooshes, gear shifts, speed-ramp wind, subtle chrome impacts",
+  cake: "soft bakery ambience, frosting swirls, gentle whisk taps, sprinkle sparkles, warm oven chimes",
+  bakery: "soft bakery ambience, frosting swirls, gentle whisk taps, sprinkle sparkles, warm oven chimes",
+  food: "light kitchen ambience, sizzling accents, plating taps, soft garnish swishes, warm celebratory chimes",
+  fashion: "runway bass pulses, camera shutter clicks, fabric swishes, heel steps, glossy UI chimes",
+  game: "arcade power-up tones, controller clicks, score chimes, bass hits, digital whooshes",
+  gaming: "arcade power-up tones, controller clicks, score chimes, bass hits, digital whooshes",
+  space: "cinematic low drones, orbital whooshes, starfield shimmer, soft radio beeps, deep trailer hits",
+  garden: "gentle outdoor ambience, leaf rustles, water droplets, soft wind, bright magical chimes",
+  music: "beat-synced risers, speaker pulses, crowd swells, vinyl scratches, stage-light whooshes",
+  art: "brush strokes, paint splashes, gallery ambience, canvas taps, soft creative sparkle sounds"
+};
+
 const initialTemplates = [
   {
     id: "template-poster",
@@ -92,7 +124,7 @@ const initialTemplates = [
     id: "template-video",
     name: "Motion Video Template",
     type: "Video Prompt",
-    body: "Create a short cinematic social video concept for {{challengeName}} using the {{presetName}} brand. Do not write the preset name as visible text. Animate neon purple light sweeps, floating {{themeObjects}}, tiny robots assembling a winner board, glossy 3D CHALLENGE RESULTS text reveals, and a final square-framed title lockup."
+    body: "Create an LTX 2.3 video prompt for a 9-second square 1:1 cinematic social video for {{challengeName}} using the {{presetName}} brand. Do not write the preset name as visible text. Animate neon purple light sweeps, floating {{themeObjects}}, tiny robots assembling a winner board, glossy 3D CHALLENGE RESULTS text reveals, and a final square-framed title lockup. Sound design: {{themeSounds}} with punchy premium competition hits."
   }
 ];
 
@@ -119,12 +151,34 @@ function getThemeObjects(theme, name, description) {
     : "symbolic icons, themed props, stylized particles, floating visual motifs";
 }
 
-function buildPrompt(type, challenge, winners) {
+function getThemeSounds(theme, name, description) {
+  const source = `${theme} ${name} ${description}`.toLowerCase();
+  const match = Object.keys(themeSoundMap).find((keyword) => source.includes(keyword));
+  if (match) return themeSoundMap[match];
+
+  return "theme-matched ambience, soft cinematic whooshes, subtle object sounds, neon UI chimes, punchy winner-reveal hits";
+}
+
+function formatHandle(handle) {
+  if (!handle) return "";
+  return handle.replace(/^@+/, "");
+}
+
+function buildCommunityRankingPrompt(title, rankings, challenge, themeObjects) {
+  const first = formatHandle(rankings.first);
+  const second = formatHandle(rankings.second);
+  const third = formatHandle(rankings.third);
+
+  return `Create a winners board with a premium three-level podium composition. The main headline must read "${title}" only, with "${challenge.name}" shown as the smaller challenge title. First place: ${first}. Second place: ${second}. Third place: ${third}. Put the large rank numbers 1, 2, and 3 on the front faces of the podium/platform blocks only. Keep rank badges away from faces, heads, torsos, and usernames. Use neon rails, celebratory particles, tiny robot mascots, and ${themeObjects}. Only render these text elements: "${title}", "${challenge.name}", ${first}, ${second}, ${third}, rank numbers 1, 2, 3, and the dates ${challenge.startDate} to ${challenge.endDate}. Do not render the words Challenge, Theme, Description, or any paragraph text.`;
+}
+
+function buildPrompt(type, challenge, winners, communityRankings) {
   const themeObjects = getThemeObjects(challenge.theme, challenge.name, challenge.description);
+  const themeSounds = getThemeSounds(challenge.theme, challenge.name, challenge.description);
   const baseStyle =
     "Maintain the Neon Purple Challenge Results visual system as the art direction only: dark purple futuristic background, large glossy 3D title text, neon glow effects, tiny robot mascots, floating challenge-related icons, premium gaming competition look, consistent visual branding, square 1:1 social media format. Do not write the preset name or the words Neon Purple as visible text in the image.";
 
-  const context = `Challenge: ${challenge.name}. Theme: ${challenge.theme}. Description: ${challenge.description}. Dates: ${challenge.startDate} to ${challenge.endDate}. Theme objects: ${themeObjects}.`;
+  const context = `Reference info only, do not render this as body text in the image: Challenge name ${challenge.name}. Theme ${challenge.theme}. Description ${challenge.description}. Dates ${challenge.startDate} to ${challenge.endDate}. Theme objects ${themeObjects}.`;
 
   const placementPrompts = {
     first: `Use the attached image as the main artwork for ${winners.first}. Preserve the attached image content, layout, and subject exactly. Do not add new characters, mascots, props, headline text, challenge details, dates, or a new background.\n\nAdd only one medal token overlay. All winner tokens must use the exact same size and placement across 1st, 2nd, and 3rd place graphics. Token placement: lower-right corner, inset 5% from the right edge and 5% from the bottom edge. Token size: exactly 150px wide by 150px tall on a 1024px square image, or exactly 14.5% of the image width on other image sizes. Do not make any rank token larger or smaller than the others.\n\nUse the same circular coin/token design for every rank: glossy beveled rim, soft outer neon glow, engraved text, small crown icon at the top of the token, and premium gaming-polished lighting. Only the token color and rank text should change. For this version, make the token gold and clearly write "1st Place". Keep the token away from faces and important subject details.`,
@@ -136,11 +190,20 @@ function buildPrompt(type, challenge, winners) {
     return placementPrompts[type];
   }
 
+  const communityPrompts = {
+    topVoters: buildCommunityRankingPrompt("TOP VOTERS", communityRankings.voters, challenge, themeObjects),
+    topSubmitters: buildCommunityRankingPrompt("TOP SUBMITTERS", communityRankings.submitters, challenge, themeObjects)
+  };
+
+  if (communityPrompts[type]) {
+    return `${baseStyle}\n\n${context}\n\n${communityPrompts[type]}`;
+  }
+
   const variants = {
     poster: `Create the main challenge poster. Place "${challenge.name}" as the dominant glossy 3D headline, add readable start and end dates, and surround the title with ${themeObjects}.`,
-    winners: `Create a winners board with a premium three-level podium composition. The main headline must read "CHALLENGE RESULTS" only, with "${challenge.name}" shown as the smaller challenge title. First place: ${winners.first}. Second place: ${winners.second}. Third place: ${winners.third}. Put the large rank numbers 1, 2, and 3 on the front faces of the podium/platform blocks only. Keep rank badges away from faces, heads, torsos, and usernames. Use neon rails, celebratory particles, tiny robot mascots, and ${themeObjects}.`,
+    winners: `Create a winners board with a premium three-level podium composition. The main headline must read "CHALLENGE RESULTS" only, with "${challenge.name}" shown as the smaller challenge title. First place: ${winners.first}. Second place: ${winners.second}. Third place: ${winners.third}. Put the large rank numbers 1, 2, and 3 on the front faces of the podium/platform blocks only. Keep rank badges away from faces, heads, torsos, and usernames. Use neon rails, celebratory particles, tiny robot mascots, and ${themeObjects}. Only render these text elements: "CHALLENGE RESULTS", "${challenge.name}", ${winners.first}, ${winners.second}, ${winners.third}, rank numbers 1, 2, 3, and the dates ${challenge.startDate} to ${challenge.endDate}. Do not render the words Challenge, Theme, Description, or any paragraph text.`,
     instagram: `Create an Instagram-ready announcement post with the challenge title, short description, dates, and a callout for community participation. Keep the layout bold, legible, and square. Do not use "Neon Purple" as visible headline text.`,
-    video: `Create a video generation prompt for a 10-second motion graphic: camera pushes through purple neon fog, tiny robot mascots assemble glossy 3D "CHALLENGE RESULTS" title letters, ${themeObjects} float past with motion trails, winners flash in a premium gaming results reveal, ending on the ChallengeForge branded square layout.`
+    video: `Create an LTX 2.3 video prompt for a 9-second square 1:1 motion graphic.\n\nTiming:\n0-2s: Camera pushes through dark purple neon fog while ${themeObjects} drift past with soft motion trails.\n2-5s: Tiny robot mascots activate glowing panels and assemble glossy 3D "CHALLENGE RESULTS" title letters. Keep the challenge title "${challenge.name}" readable as supporting text.\n5-7s: Winners flash in with premium gaming competition energy: 1st ${winners.first}, 2nd ${winners.second}, 3rd ${winners.third}.\n7-9s: Final hero lockup holds on the square ChallengeForge branded results layout with neon rails, polished highlights, and clean readable text.\n\nCamera and motion: smooth cinematic push-in, subtle parallax, glowing particles, premium social media reveal, no shaky camera, no distorted text.\n\nAttached sound direction / audio prompt: ${themeSounds}. Layer these with neon risers, clean bass hits, soft robot beeps, celebratory winner stingers, and a final polished impact on the results lockup.`
   };
 
   return `${baseStyle}\n\n${context}\n\n${variants[type]}`;
@@ -157,7 +220,8 @@ function fillTemplate(template, challenge, winners) {
     "{{secondPlace}}": winners.second,
     "{{thirdPlace}}": winners.third,
     "{{presetName}}": preset.name,
-    "{{themeObjects}}": getThemeObjects(challenge.theme, challenge.name, challenge.description)
+    "{{themeObjects}}": getThemeObjects(challenge.theme, challenge.name, challenge.description),
+    "{{themeSounds}}": getThemeSounds(challenge.theme, challenge.name, challenge.description)
   };
 
   return Object.entries(replacements).reduce(
@@ -198,6 +262,7 @@ function Section({ title, icon: Icon, children, aside }) {
 export default function Home() {
   const [challenge, setChallenge] = useState(defaultChallenge);
   const [winners, setWinners] = useState(defaultWinners);
+  const [communityRankings, setCommunityRankings] = useState(defaultCommunityRankings);
   const [activeType, setActiveType] = useState("poster");
   const [templates, setTemplates] = useState(initialTemplates);
   const [editingId, setEditingId] = useState(null);
@@ -220,8 +285,8 @@ export default function Home() {
   }, [templates]);
 
   const generatedPrompt = useMemo(
-    () => buildPrompt(activeType, challenge, winners),
-    [activeType, challenge, winners]
+    () => buildPrompt(activeType, challenge, winners, communityRankings),
+    [activeType, challenge, winners, communityRankings]
   );
 
   const themeObjects = useMemo(
@@ -235,6 +300,16 @@ export default function Home() {
 
   function updateWinner(key, value) {
     setWinners((current) => ({ ...current, [key]: value }));
+  }
+
+  function updateCommunityRanking(group, key, value) {
+    setCommunityRankings((current) => ({
+      ...current,
+      [group]: {
+        ...current[group],
+        [key]: value
+      }
+    }));
   }
 
   async function copyText(text, label) {
@@ -350,6 +425,27 @@ export default function Home() {
               </Section>
             </div>
 
+            <Section title="Community Rankings" icon={Heart}>
+              <div className="rankings-layout">
+                <div>
+                  <h3>Top Voters</h3>
+                  <div className="winner-grid">
+                    <Field label="Top Voter #1" value={communityRankings.voters.first} onChange={(value) => updateCommunityRanking("voters", "first", value)} />
+                    <Field label="Top Voter #2" value={communityRankings.voters.second} onChange={(value) => updateCommunityRanking("voters", "second", value)} />
+                    <Field label="Top Voter #3" value={communityRankings.voters.third} onChange={(value) => updateCommunityRanking("voters", "third", value)} />
+                  </div>
+                </div>
+                <div>
+                  <h3>Top Submitters</h3>
+                  <div className="winner-grid">
+                    <Field label="Top Submitter #1" value={communityRankings.submitters.first} onChange={(value) => updateCommunityRanking("submitters", "first", value)} />
+                    <Field label="Top Submitter #2" value={communityRankings.submitters.second} onChange={(value) => updateCommunityRanking("submitters", "second", value)} />
+                    <Field label="Top Submitter #3" value={communityRankings.submitters.third} onChange={(value) => updateCommunityRanking("submitters", "third", value)} />
+                  </div>
+                </div>
+              </div>
+            </Section>
+
             <div id="generator">
               <Section
                 title="Generate Prompt Buttons"
@@ -418,7 +514,7 @@ export default function Home() {
                 </div>
                 <Field label="Template Body" value={draftTemplate.body} onChange={(value) => setDraftTemplate((current) => ({ ...current, body: value }))} textarea />
                 <div className="token-row">
-                  {["{{challengeName}}", "{{challengeTheme}}", "{{themeObjects}}", "{{firstPlace}}"].map((token) => (
+                  {["{{challengeName}}", "{{challengeTheme}}", "{{themeObjects}}", "{{themeSounds}}", "{{firstPlace}}"].map((token) => (
                     <button
                       key={token}
                       onClick={() => setDraftTemplate((current) => ({ ...current, body: `${current.body}${current.body ? " " : ""}${token}` }))}

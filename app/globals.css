@@ -331,6 +331,18 @@ h1 {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.rankings-layout {
+  display: grid;
+  gap: 22px;
+}
+
+.rankings-layout h3 {
+  margin: 0 0 12px;
+  color: var(--cyan);
+  font-size: 14px;
+  text-transform: uppercase;
+}
+
 .wide {
   grid-column: 1 / -1;
 }
