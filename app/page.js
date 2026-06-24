@@ -161,7 +161,7 @@ function getThemeSounds(theme, name, description) {
 
 function formatHandle(handle) {
   if (!handle) return "";
-  return handle.replace(/^@+/, "");
+  return handle.trim();
 }
 
 function buildCommunityRankingPrompt(title, rankings, challenge, themeObjects) {
